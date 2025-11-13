@@ -81,7 +81,7 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
-      min-width: 650px;
+      min-width: 700px;
     }
     th, td {
       border-bottom: 1px solid #eee;
@@ -153,12 +153,12 @@
       <div>台</div><div>C</div><div>枚</div>
     </div>
 
-    <!-- 持ち出し -->
-    <label>持ち出し数量</label>
+    <!-- 残数量 -->
+    <label>残数量</label>
     <div class="row">
-      <div><input type="number" id="carryDolly"  inputmode="numeric" min="0" placeholder="台"></div>
-      <div><input type="number" id="carryC"      inputmode="numeric" min="0" placeholder="C"></div>
-      <div><input type="number" id="carrySheets" inputmode="numeric" min="0" placeholder="枚"></div>
+      <div><input type="number" id="remainDolly"  inputmode="numeric" min="0" placeholder="台"></div>
+      <div><input type="number" id="remainC"      inputmode="numeric" min="0" placeholder="C"></div>
+      <div><input type="number" id="remainSheets" inputmode="numeric" min="0" placeholder="枚"></div>
     </div>
     <div class="unit-row">
       <div>台</div><div>C</div><div>枚</div>
@@ -182,9 +182,9 @@
             <th>出庫</th>
             <th>前半</th>
             <th>後半</th>
+            <th>残</th>
             <th>持ち出し</th>
             <th>総使用</th>
-            <th>残</th>
             <th>削除</th>
           </tr>
         </thead>
@@ -199,7 +199,7 @@
     const C_PER_DOLLY = 24;          // 1台 = 24C
     const SHEETS_PER_C = 20;         // 1C = 20枚
     const SHEETS_PER_DOLLY = C_PER_DOLLY * SHEETS_PER_C; // 480枚
-    const STORAGE_KEY = 'reitou-usage-v2';
+    const STORAGE_KEY = 'reitou-usage-v3';
 
     // 要素取得
     const dateInput      = document.getElementById('dateInput');
@@ -217,9 +217,9 @@
     const secondC        = document.getElementById('secondC');
     const secondSheets   = document.getElementById('secondSheets');
 
-    const carryDolly     = document.getElementById('carryDolly');
-    const carryC         = document.getElementById('carryC');
-    const carrySheets    = document.getElementById('carrySheets');
+    const remainDolly    = document.getElementById('remainDolly');
+    const remainC        = document.getElementById('remainC');
+    const remainSheets   = document.getElementById('remainSheets');
 
     const calcBtn        = document.getElementById('calcBtn');
     const saveBtn        = document.getElementById('saveBtn');
@@ -235,7 +235,7 @@
       return `${y}-${m}-${day}`;
     }
 
-    // 台・C・枚 → 枚に変換
+    // 台・C・枚 → 枚
     function toSheets(dolly, c, sheets) {
       const d = Number(dolly)  || 0;
       const cc = Number(c)     || 0;
@@ -243,7 +243,7 @@
       return d * SHEETS_PER_DOLLY + cc * SHEETS_PER_C + s;
     }
 
-    // 枚 → 台・C・枚 に分解
+    // 枚 → 台・C・枚
     function fromSheets(totalSheets) {
       let t = Number(totalSheets) || 0;
       const d = Math.floor(t / SHEETS_PER_DOLLY);
@@ -253,41 +253,46 @@
       return { dolly: d, c: c, sheets: s };
     }
 
-    // 表示用の文字列 "2台10C8枚" みたいな
+    // "2台10C8枚" 形式
     function formatCombo(sheets) {
       const combo = fromSheets(sheets);
       return `${combo.dolly}台${combo.c}C${combo.sheets}枚`;
     }
 
-    // 入力を計算して結果を返す
+    // 現在入力から計算
     function calcCurrent() {
       const date = dateInput.value || getTodayString();
 
       const shipTotal   = toSheets(shipDolly.value,  shipC.value,  shipSheets.value);
       const firstTotal  = toSheets(firstDolly.value, firstC.value, firstSheets.value);
       const secondTotal = toSheets(secondDolly.value, secondC.value, secondSheets.value);
-      const carryTotal  = toSheets(carryDolly.value, carryC.value, carrySheets.value);
+      const remainTotal = toSheets(remainDolly.value, remainC.value, remainSheets.value);
 
-      const useTotal    = firstTotal + secondTotal + carryTotal;
-      const remainTotal = shipTotal - useTotal;
+      // 相棒指定の計算式
+      const useTotal    = shipTotal - remainTotal;                      // 総使用 = 出庫 - 残
+      const carryTotal  = shipTotal - firstTotal - secondTotal - remainTotal; // 持ち出し
 
       return {
         date,
         shipTotal,
         firstTotal,
         secondTotal,
+        remainTotal,
         carryTotal,
-        useTotal,
-        remainTotal
+        useTotal
       };
     }
 
     // 計算結果の表示
     function renderSummary(result) {
       if (!result) return;
+
       const shipCombo   = fromSheets(result.shipTotal);
-      const useCombo    = fromSheets(result.useTotal);
+      const firstCombo  = fromSheets(result.firstTotal);
+      const secondCombo = fromSheets(result.secondTotal);
       const remainCombo = fromSheets(result.remainTotal);
+      const carryCombo  = fromSheets(result.carryTotal);
+      const useCombo    = fromSheets(result.useTotal);
 
       summaryArea.innerHTML = `
         <div class="result-line">
@@ -296,19 +301,34 @@
           （合計 ${result.shipTotal}枚）
         </div>
         <div class="result-line">
-          <span class="result-label">総使用：</span>
-          ${useCombo.dolly}台 ${useCombo.c}C ${useCombo.sheets}枚
-          （合計 ${result.useTotal}枚）
+          <span class="result-label">前半：</span>
+          ${firstCombo.dolly}台 ${firstCombo.c}C ${firstCombo.sheets}枚
+          （合計 ${result.firstTotal}枚）
+        </div>
+        <div class="result-line">
+          <span class="result-label">後半：</span>
+          ${secondCombo.dolly}台 ${secondCombo.c}C ${secondCombo.sheets}枚
+          （合計 ${result.secondTotal}枚）
         </div>
         <div class="result-line">
           <span class="result-label">残数量：</span>
           ${remainCombo.dolly}台 ${remainCombo.c}C ${remainCombo.sheets}枚
           （合計 ${result.remainTotal}枚）
         </div>
+        <div class="result-line">
+          <span class="result-label">持ち出し：</span>
+          ${carryCombo.dolly}台 ${carryCombo.c}C ${carryCombo.sheets}枚
+          （合計 ${result.carryTotal}枚）
+        </div>
+        <div class="result-line">
+          <span class="result-label">総使用：</span>
+          ${useCombo.dolly}台 ${useCombo.c}C ${useCombo.sheets}枚
+          （合計 ${result.useTotal}枚）
+        </div>
       `;
     }
 
-    // localStorage からデータ取得
+    // localStorage 読み込み
     function loadHistory() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -322,7 +342,7 @@
       }
     }
 
-    // localStorage に保存
+    // localStorage 保存
     function saveHistory(list) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     }
@@ -342,28 +362,23 @@
       list.forEach((item, index) => {
         const tr = document.createElement('tr');
 
-        const tdDate = document.createElement('td');
-        tdDate.textContent = item.date;
-
-        const tdShip = document.createElement('td');
-        tdShip.textContent = formatCombo(item.shipTotal);
-
-        const tdFirst = document.createElement('td');
-        tdFirst.textContent = formatCombo(item.firstTotal);
-
+        const tdDate   = document.createElement('td');
+        const tdShip   = document.createElement('td');
+        const tdFirst  = document.createElement('td');
         const tdSecond = document.createElement('td');
-        tdSecond.textContent = formatCombo(item.secondTotal);
-
-        const tdCarry = document.createElement('td');
-        tdCarry.textContent = formatCombo(item.carryTotal);
-
-        const tdUse = document.createElement('td');
-        tdUse.textContent = formatCombo(item.useTotal);
-
         const tdRemain = document.createElement('td');
-        tdRemain.textContent = formatCombo(item.remainTotal);
+        const tdCarry  = document.createElement('td');
+        const tdUse    = document.createElement('td');
+        const tdDel    = document.createElement('td');
 
-        const tdDel = document.createElement('td');
+        tdDate.textContent   = item.date;
+        tdShip.textContent   = formatCombo(item.shipTotal);
+        tdFirst.textContent  = formatCombo(item.firstTotal);
+        tdSecond.textContent = formatCombo(item.secondTotal);
+        tdRemain.textContent = formatCombo(item.remainTotal);
+        tdCarry.textContent  = formatCombo(item.carryTotal);
+        tdUse.textContent    = formatCombo(item.useTotal);
+
         const btn = document.createElement('button');
         btn.textContent = '削除';
         btn.className = 'delete-btn';
@@ -379,10 +394,11 @@
         tr.appendChild(tdShip);
         tr.appendChild(tdFirst);
         tr.appendChild(tdSecond);
+        tr.appendChild(tdRemain);
         tr.appendChild(tdCarry);
         tr.appendChild(tdUse);
-        tr.appendChild(tdRemain);
         tr.appendChild(tdDel);
+
         historyBody.appendChild(tr);
       });
     }
