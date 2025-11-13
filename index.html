@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>冷凍蓄冷材 使用管理（台・C・枚）</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f5f5f5;
+      line-height: 1.4;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    label {
+      font-size: 14px;
+      display: block;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+    input, button {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    button {
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button.primary {
+      background: #007bff;
+      color: #fff;
+    }
+    button.secondary {
+      background: #e0e0e0;
+    }
+    .row {
+      display: flex;
+      gap: 6px;
+    }
+    .row > div {
+      flex: 1;
+    }
+    .unit-row {
+      display: flex;
+      gap: 6px;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .unit-row > div {
+      flex: 1;
+      text-align: center;
+      color: #555;
+    }
+    .result-line {
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .result-label {
+      font-weight: bold;
+    }
+    .history-wrapper {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 650px;
+    }
+    th, td {
+      border-bottom: 1px solid #eee;
+      padding: 4px 2px;
+      white-space: nowrap;
+      text-align: right;
+    }
+    th:first-child, td:first-child {
+      text-align: left;
+    }
+    .empty-message {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .delete-btn {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>冷凍蓄冷材 使用管理</h1>
+
+  <!-- 入力エリア -->
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="dateInput">日付</label>
+        <input type="date" id="dateInput">
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="todayBtn" class="secondary">今日</button>
+      </div>
+    </div>
+
+    <!-- 出庫 -->
+    <label>出庫数量</label>
+    <div class="row">
+      <div><input type="number" id="shipDolly"  inputmode="numeric" min="0" placeholder="台"></div>
+      <div><input type="number" id="shipC"      inputmode="numeric" min="0" placeholder="C"></div>
+      <div><input type="number" id="shipSheets" inputmode="numeric" min="0" placeholder="枚"></div>
+    </div>
+    <div class="unit-row">
+      <div>台</div><div>C</div><div>枚</div>
+    </div>
+
+    <!-- 前半 -->
+    <label>前半使用数</label>
+    <div class="row">
+      <div><input type="number" id="firstDolly"  inputmode="numeric" min="0" placeholder="台"></div>
+      <div><input type="number" id="firstC"      inputmode="numeric" min="0" placeholder="C"></div>
+      <div><input type="number" id="firstSheets" inputmode="numeric" min="0" placeholder="枚"></div>
+    </div>
+    <div class="unit-row">
+      <div>台</div><div>C</div><div>枚</div>
+    </div>
+
+    <!-- 後半 -->
+    <label>後半使用数</label>
+    <div class="row">
+      <div><input type="number" id="secondDolly"  inputmode="numeric" min="0" placeholder="台"></div>
+      <div><input type="number" id="secondC"      inputmode="numeric" min="0" placeholder="C"></div>
+      <div><input type="number" id="secondSheets" inputmode="numeric" min="0" placeholder="枚"></div>
+    </div>
+    <div class="unit-row">
+      <div>台</div><div>C</div><div>枚</div>
+    </div>
+
+    <!-- 持ち出し -->
+    <label>持ち出し数量</label>
+    <div class="row">
+      <div><input type="number" id="carryDolly"  inputmode="numeric" min="0" placeholder="台"></div>
+      <div><input type="number" id="carryC"      inputmode="numeric" min="0" placeholder="C"></div>
+      <div><input type="number" id="carrySheets" inputmode="numeric" min="0" placeholder="枚"></div>
+    </div>
+    <div class="unit-row">
+      <div>台</div><div>C</div><div>枚</div>
+    </div>
+
+    <button id="calcBtn" class="secondary">計算だけする</button>
+    <button id="saveBtn" class="primary">この内容で保存</button>
+
+    <!-- 計算結果表示 -->
+    <div id="summaryArea"></div>
+  </div>
+
+  <!-- 履歴エリア -->
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 4px;">履歴一覧</h2>
+    <div class="history-wrapper">
+      <table id="historyTable">
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>出庫</th>
+            <th>前半</th>
+            <th>後半</th>
+            <th>持ち出し</th>
+            <th>総使用</th>
+            <th>残</th>
+            <th>削除</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyMessage" class="empty-message"></div>
+  </div>
+
+  <script>
+    // 変換定数
+    const C_PER_DOLLY = 24;          // 1台 = 24C
+    const SHEETS_PER_C = 20;         // 1C = 20枚
+    const SHEETS_PER_DOLLY = C_PER_DOLLY * SHEETS_PER_C; // 480枚
+    const STORAGE_KEY = 'reitou-usage-v2';
+
+    // 要素取得
+    const dateInput      = document.getElementById('dateInput');
+    const todayBtn       = document.getElementById('todayBtn');
+
+    const shipDolly      = document.getElementById('shipDolly');
+    const shipC          = document.getElementById('shipC');
+    const shipSheets     = document.getElementById('shipSheets');
+
+    const firstDolly     = document.getElementById('firstDolly');
+    const firstC         = document.getElementById('firstC');
+    const firstSheets    = document.getElementById('firstSheets');
+
+    const secondDolly    = document.getElementById('secondDolly');
+    const secondC        = document.getElementById('secondC');
+    const secondSheets   = document.getElementById('secondSheets');
+
+    const carryDolly     = document.getElementById('carryDolly');
+    const carryC         = document.getElementById('carryC');
+    const carrySheets    = document.getElementById('carrySheets');
+
+    const calcBtn        = document.getElementById('calcBtn');
+    const saveBtn        = document.getElementById('saveBtn');
+    const summaryArea    = document.getElementById('summaryArea');
+    const historyBody    = document.getElementById('historyBody');
+    const emptyMessage   = document.getElementById('emptyMessage');
+
+    function getTodayString() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = ('0' + (d.getMonth() + 1)).slice(-2);
+      const day = ('0' + d.getDate()).slice(-2);
+      return `${y}-${m}-${day}`;
+    }
+
+    // 台・C・枚 → 枚に変換
+    function toSheets(dolly, c, sheets) {
+      const d = Number(dolly)  || 0;
+      const cc = Number(c)     || 0;
+      const s = Number(sheets) || 0;
+      return d * SHEETS_PER_DOLLY + cc * SHEETS_PER_C + s;
+    }
+
+    // 枚 → 台・C・枚 に分解
+    function fromSheets(totalSheets) {
+      let t = Number(totalSheets) || 0;
+      const d = Math.floor(t / SHEETS_PER_DOLLY);
+      t = t % SHEETS_PER_DOLLY;
+      const c = Math.floor(t / SHEETS_PER_C);
+      const s = t % SHEETS_PER_C;
+      return { dolly: d, c: c, sheets: s };
+    }
+
+    // 表示用の文字列 "2台10C8枚" みたいな
+    function formatCombo(sheets) {
+      const combo = fromSheets(sheets);
+      return `${combo.dolly}台${combo.c}C${combo.sheets}枚`;
+    }
+
+    // 入力を計算して結果を返す
+    function calcCurrent() {
+      const date = dateInput.value || getTodayString();
+
+      const shipTotal   = toSheets(shipDolly.value,  shipC.value,  shipSheets.value);
+      const firstTotal  = toSheets(firstDolly.value, firstC.value, firstSheets.value);
+      const secondTotal = toSheets(secondDolly.value, secondC.value, secondSheets.value);
+      const carryTotal  = toSheets(carryDolly.value, carryC.value, carrySheets.value);
+
+      const useTotal    = firstTotal + secondTotal + carryTotal;
+      const remainTotal = shipTotal - useTotal;
+
+      return {
+        date,
+        shipTotal,
+        firstTotal,
+        secondTotal,
+        carryTotal,
+        useTotal,
+        remainTotal
+      };
+    }
+
+    // 計算結果の表示
+    function renderSummary(result) {
+      if (!result) return;
+      const shipCombo   = fromSheets(result.shipTotal);
+      const useCombo    = fromSheets(result.useTotal);
+      const remainCombo = fromSheets(result.remainTotal);
+
+      summaryArea.innerHTML = `
+        <div class="result-line">
+          <span class="result-label">出庫：</span>
+          ${shipCombo.dolly}台 ${shipCombo.c}C ${shipCombo.sheets}枚
+          （合計 ${result.shipTotal}枚）
+        </div>
+        <div class="result-line">
+          <span class="result-label">総使用：</span>
+          ${useCombo.dolly}台 ${useCombo.c}C ${useCombo.sheets}枚
+          （合計 ${result.useTotal}枚）
+        </div>
+        <div class="result-line">
+          <span class="result-label">残数量：</span>
+          ${remainCombo.dolly}台 ${remainCombo.c}C ${remainCombo.sheets}枚
+          （合計 ${result.remainTotal}枚）
+        </div>
+      `;
+    }
+
+    // localStorage からデータ取得
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data)) return [];
+        return data;
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
+
+    // localStorage に保存
+    function saveHistory(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    // 履歴の描画
+    function renderHistory() {
+      const list = loadHistory().sort((a, b) => a.date.localeCompare(b.date));
+      historyBody.innerHTML = '';
+
+      if (list.length === 0) {
+        emptyMessage.textContent = 'まだ記録はありません。';
+        return;
+      } else {
+        emptyMessage.textContent = '';
+      }
+
+      list.forEach((item, index) => {
+        const tr = document.createElement('tr');
+
+        const tdDate = document.createElement('td');
+        tdDate.textContent = item.date;
+
+        const tdShip = document.createElement('td');
+        tdShip.textContent = formatCombo(item.shipTotal);
+
+        const tdFirst = document.createElement('td');
+        tdFirst.textContent = formatCombo(item.firstTotal);
+
+        const tdSecond = document.createElement('td');
+        tdSecond.textContent = formatCombo(item.secondTotal);
+
+        const tdCarry = document.createElement('td');
+        tdCarry.textContent = formatCombo(item.carryTotal);
+
+        const tdUse = document.createElement('td');
+        tdUse.textContent = formatCombo(item.useTotal);
+
+        const tdRemain = document.createElement('td');
+        tdRemain.textContent = formatCombo(item.remainTotal);
+
+        const tdDel = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.textContent = '削除';
+        btn.className = 'delete-btn';
+        btn.addEventListener('click', () => {
+          const newList = loadHistory();
+          newList.splice(index, 1);
+          saveHistory(newList);
+          renderHistory();
+        });
+        tdDel.appendChild(btn);
+
+        tr.appendChild(tdDate);
+        tr.appendChild(tdShip);
+        tr.appendChild(tdFirst);
+        tr.appendChild(tdSecond);
+        tr.appendChild(tdCarry);
+        tr.appendChild(tdUse);
+        tr.appendChild(tdRemain);
+        tr.appendChild(tdDel);
+        historyBody.appendChild(tr);
+      });
+    }
+
+    // 初期化
+    function init() {
+      dateInput.value = getTodayString();
+      renderHistory();
+    }
+
+    todayBtn.addEventListener('click', () => {
+      dateInput.value = getTodayString();
+    });
+
+    calcBtn.addEventListener('click', () => {
+      const result = calcCurrent();
+      renderSummary(result);
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const result = calcCurrent();
+      renderSummary(result);
+
+      const list = loadHistory();
+      list.push(result);
+      saveHistory(list);
+      renderHistory();
+    });
+
+    init();
+  </script>
+</body>
+</html>
